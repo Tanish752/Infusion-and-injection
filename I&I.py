@@ -84,12 +84,10 @@ for category, drug, start, end, dur in all_times:
             remaining = int(dur) - 60
             full_blocks = remaining // 60
             remainder = remaining % 60
-            units = full_blocks
-			if remainder > 30:
-			    units += 1
-			if units > 0:
-			    codes.append(f"96366*{units}")
-
+            for _ in range(full_blocks):
+                codes.append("96366")
+            if remainder > 30:
+                codes.append("96366")
         primary_done = True
 
     # --- Case 2: Same drug repeated within 30 minutes ---
@@ -112,10 +110,21 @@ for category, drug, start, end, dur in all_times:
             remaining = int(dur) - 60
             full_blocks = remaining // 60
             remainder = remaining % 60
-            for _ in range(full_blocks):
-                codes.append("96366")
-            if remainder > 30:
-                codes.append("96366")
+             if not primary_done:
+        if 31 < dur <= 60:
+            codes.append("96365")
+        elif dur > 60:
+            codes.append("96365")
+            remaining = int(dur) - 60
+            full_blocks = remaining // 60
+            remainder = remaining % 60
+            units = full_blocks
+			if remainder > 30:
+			    units += 1
+			if units > 0:
+			    codes.append(f"96366*{units}")
+
+        primary_done = True
 
     # ✅ Append codes instead of overwriting
     drug_codes.setdefault(drug, []).extend(codes)
@@ -159,8 +168,9 @@ for category, drug, start, end, dur in all_times:
 
 st.markdown("### Assigned Codes")
 for drug, codes in drug_codes.items():
-	st.success(f"{drug} - {', '.join(codes)}")
+    st.success(f"{drug} - {', '.join(codes)}")
 
 for skipped in skipped_infusions:
-	st.warning(skipped)
+    st.warning(skipped)
+
 
