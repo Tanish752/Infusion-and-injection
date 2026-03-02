@@ -1,49 +1,57 @@
-from datetime import datetime as dt
 import streamlit as st
+from datetime import datetime as dt
 
-def normalize_time(time_str: str) -> str:
+def normalize_datetime(date_str: str, time_str: str) -> dt:
     try:
-        dt.strptime(time_str, "%H:%M:%S")
-        return time_str
+        time_obj = dt.strptime(time_str, "%H:%M:%S").time()
     except ValueError:
         if time_str.isdigit():
-            if len(time_str) == 4:
+            if len(time_str) == 4:  # e.g. "0930"
                 hours = int(time_str[:2])
                 minutes = int(time_str[2:])
-                return f"{hours:02d}:{minutes:02d}:00"
-            elif len(time_str) == 3:
+            elif len(time_str) == 3:  # e.g. "930"
                 hours = int(time_str[:1])
                 minutes = int(time_str[1:])
-                return f"{hours:02d}:{minutes:02d}:00"
-        raise ValueError("Invalid time format. Use HH:MM:SS or shorthand like 930/1000.")
+            else:
+                raise ValueError("Invalid shorthand time format.")
+            time_obj = dt.strptime(f"{hours:02d}:{minutes:02d}:00", "%H:%M:%S").time()
+        else:
+            raise ValueError("Invalid time format. Use HH:MM:SS or shorthand like 930/1000.")
+    date_obj = dt.strptime(date_str, "%Y-%m-%d").date()
+    return dt.combine(date_obj, time_obj)
 
-def duration(start_time: str, end_time: str) -> float:
-    start_dt = dt.strptime(start_time, "%H:%M:%S")
-    end_dt   = dt.strptime(end_time, "%H:%M:%S")
+def duration(start_dt: dt, end_dt: dt) -> float:
     return (end_dt - start_dt).total_seconds() / 60
 
 st.set_page_config(page_title="Infusion Coding Tool", layout="wide")
 st.title("Infusion Coding Tool")
 
-process = st.button("Codes for Infusions")  # always at top
-
+process = st.button("Codes for Infusions")
 infusion_number = st.number_input("Number of infusions", min_value=1, step=1)
 
 all_times = []
 st.markdown("### Enter Infusion Details")
+
 for i in range(infusion_number):
-    col1, col2, col3 = st.columns([1, 2, 2])
+    st.subheader(f"Infusion {i+1}")
+    col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 2])
     with col1:
         drug = st.text_input("Drug name", key=f"drug{i}")
     with col2:
-        start_time = st.text_input("Start time (HH:MM:SS or shorthand)", key=f"start{i}")
+        start_date = st.date_input("Start Date", key=f"start_date{i}").strftime("%Y-%m-%d")
     with col3:
+        start_time = st.text_input("Start time (HH:MM:SS or shorthand)", key=f"start{i}")
+    with col4:
+        end_date = st.date_input("End Date", key=f"end_date{i}").strftime("%Y-%m-%d")
+    with col5:
         end_time = st.text_input("End time (HH:MM:SS or shorthand)", key=f"end{i}")
 
     if drug and start_time and end_time:
         try:
-            dur = duration(normalize_time(start_time), normalize_time(end_time))
-            all_times.append(("infusion", drug, start_time, end_time, dur))
+            start_dt = normalize_datetime(start_date, start_time)
+            end_dt   = normalize_datetime(end_date, end_time)
+            dur = duration(start_dt, end_dt)
+            all_times.append(("infusion", drug, start_dt, end_dt, dur))
         except Exception as e:
             st.error(f"Error in infusion {i+1}: {e}")
 
@@ -57,37 +65,61 @@ if process:
             short_durations.setdefault(drug, []).append(dur)
         else:
             total_durations[drug] = total_durations.get(drug, 0) + dur
+drug_codes = {}
+skipped_infusions = []
 
-    previous_drug = None
-    primary_done = False
+previous_drug = None
+previous_end = None
+primary_done = False
 
-    for drug, total in total_durations.items():
-        codes = []
-        if not primary_done:
-            if total > 31 and total <= 60:
-                codes.append("96365")
-            else:
-                codes.append("96365")
-                remaining = int(total) - 60
-                full_blocks = remaining // 60
-                remainder = remaining % 60
-                for _ in range(full_blocks):
-                    codes.append("96366")
-                if remainder > 30:
-                    codes.append("96366")
-            primary_done = True
+for category, drug, start, end, dur in all_times:
+    codes = []
+
+    # --- Case 1: First primary infusion ---
+    if not primary_done:
+        if 31 < dur <= 60:
+            codes.append("96365")
+        elif dur > 60:
+            codes.append("96365")
+            remaining = int(dur) - 60
+            full_blocks = remaining // 60
+            remainder = remaining % 60
+            for _ in range(full_blocks):
+                codes.append("96366")
+            if remainder > 30:
+                codes.append("96366")
+        primary_done = True
+
+    # --- Case 2: Same drug repeated within 30 minutes ---
+    elif previous_drug == drug and previous_end and (start - previous_end).total_seconds() / 60 < 30:
+        if (end - previous_end).total_seconds() / 60 > 30:
+            codes.append("96366")  # continuation if overlap >30 min
         else:
-            codes.append("96367")
-            if total > 60:
-                remaining = int(total) - 60
-                full_blocks = remaining // 60
-                remainder = remaining % 60
-                for _ in range(full_blocks):
-                    codes.append("96366")
-                if remainder > 30:
-                    codes.append("96366")
-        drug_codes[drug] = codes
-        previous_drug = drug
+            skipped_infusions.append(
+                f"No code for {drug} since repeated within 30 minutes "
+                f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
+            )
+            previous_drug = drug
+            previous_end = end
+            continue
+
+    # --- Case 3: Subsequent infusions ---
+    else:
+        codes.append("96367")
+        if dur > 60:
+            remaining = int(dur) - 60
+            full_blocks = remaining // 60
+            remainder = remaining % 60
+            for _ in range(full_blocks):
+                codes.append("96366")
+            if remainder > 30:
+                codes.append("96366")
+
+    # ✅ Append codes instead of overwriting
+    drug_codes.setdefault(drug, []).extend(codes)
+    previous_drug = drug
+    previous_end = end        
+        
 
     for drug, durations in short_durations.items():
         for dur in durations:
@@ -100,16 +132,33 @@ if process:
                 else:
                     drug_codes[drug].append("96374")
 
-    st.markdown("## Results")
-    st.markdown("### Total Durations (≥16 min)")
-    for drug, total in total_durations.items():
-        st.write(f"{drug}  -  {total} minutes")
+st.markdown("## Results")
+st.markdown("### Infusion Summary")
+for category, drug, start, end, dur in all_times:
+    adjusted_dur = dur
+    note = ""
 
-    st.markdown("### Short Durations (<16 min)")
-    for drug, durations in short_durations.items():
-        for dur in durations:
-            st.write(f"{drug}  -  {dur} minutes")
+    # If same drug and overlap exists → subtract overlap
+    if previous_drug == drug and previous_end and start < previous_end:
+        overlap = (previous_end - start).total_seconds() / 60
+        adjusted_dur = dur - overlap
+        if adjusted_dur < 0:
+            adjusted_dur = 0
+        note = " (rest included in previous infusion)"
 
-    st.markdown("### Assigned Codes")
-    for drug, codes in drug_codes.items():
-        st.success(f"{drug}  -  {', '.join(codes)}")
+    st.write(
+        f"{drug}: {start.strftime('%Y-%m-%d %H:%M:%S')} → "
+        f"{end.strftime('%Y-%m-%d %H:%M:%S')} | {adjusted_dur:.2f} minutes{note}"
+    )
+
+    previous_drug = drug
+    previous_end = end
+
+
+st.markdown("### Assigned Codes")
+for drug, codes in drug_codes.items():
+	st.success(f"{drug} - {', '.join(codes)}")
+
+for skipped in skipped_infusions:
+	st.warning(skipped)
+
