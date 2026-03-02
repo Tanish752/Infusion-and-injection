@@ -110,19 +110,11 @@ for category, drug, start, end, dur in all_times:
             remaining = int(dur) - 60
             full_blocks = remaining // 60
             remainder = remaining % 60
-             if not primary_done:
-        if 31 < dur <= 60:
-            codes.append("96365")
-        elif dur > 60:
-            codes.append("96365")
-            remaining = int(dur) - 60
-            full_blocks = remaining // 60
-            remainder = remaining % 60
             units = full_blocks
-			if remainder > 30:
-			    units += 1
-			if units > 0:
-			    codes.append(f"96366*{units}")
+            if remainder > 30:
+                units += 1
+            if units > 0:
+                codes.append(f"96366*{units}")
 
         primary_done = True
 
