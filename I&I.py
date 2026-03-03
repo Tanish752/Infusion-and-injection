@@ -101,7 +101,7 @@ for category, drug, start, end, dur in all_times:
                 f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
             )
             continue
-        if:
+        if drug != previous_drug:
             codes.append("96367")
         if dur > 60:
             remaining = int(dur) - 60
