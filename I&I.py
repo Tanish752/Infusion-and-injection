@@ -1,6 +1,15 @@
 import streamlit as st
 from datetime import datetime as dt
 
+
+def iter_calendar_days(sdt: dt, edt: dt):
+    """Yield each calendar date between start and end inclusive."""
+    d = sdt.date()
+    end_d = edt.date()
+    while d <= end_d:
+        yield d
+        d = d + timedelta(days=1)
+
 def normalize_datetime(date_str: str, time_str: str) -> dt:
     try:
         time_obj = dt.strptime(time_str, "%H:%M:%S").time()
@@ -131,21 +140,38 @@ if process:
                         continue
 
                                 
-                # --- Case 3: New drug concurrent with PRIMARY (96368, possibly *days) ---
+                
+                # --- Case 3: Different drug concurrent with PRIMARY — 96368 once per date ---
                 elif (
                     drug != previous_drug
                     and primary_start is not None
                     and primary_end is not None
-                    and start < primary_end and end > primary_start  # overlap with PRIMARY window
-                    and "96368" not in drug_codes.get(drug, [])       # avoid duplicate 96368 for this drug
+                    and (start < primary_end and end > primary_start)  # overlaps PRIMARY
                 ):
-                    days = (end.date() - start.date()).days + 1  # inclusive day count
-                    if start.date() != end.date():
-                        codes.append(f"96368*{days}")
-                    else:
-                        codes.append("96368")
+                    # Determine how many NEW dates (not yet used for 96368) are covered by this infusion
+                    span_dates = list(iter_calendar_days(start, end))
+                    new_dates = [d for d in span_dates if d not in used_96368_dates]
                 
-                # --- Case 4: New drug SEQUENTIAL to PRIMARY (96367, + extra units if >60) ---
+                    if new_dates:
+                        # Assign 96368 with units equal to the count of NEW dates
+                        units = len(new_dates)
+                        if units == 1:
+                            codes.append("96368")
+                        else:
+                            codes.append(f"96368*{units}")
+                        used_96368_dates.update(new_dates)
+                    else:
+                        # All dates covered already had a 96368 assigned — treat as sequential instead
+                        codes.append("96367")
+                        if dur > 60:
+                            remaining = int(dur) - 60
+                            full_blocks = remaining // 60
+                            remainder = remaining % 60
+                            units = full_blocks + (1 if remainder > 30 else 0)
+                            if units > 0:
+                                codes.append(f"96366*{units}")
+                
+                # --- Case 4: Different drug NOT concurrent with PRIMARY — 96367 ---
                 elif (
                     drug != previous_drug
                     and primary_start is not None
@@ -160,6 +186,7 @@ if process:
                         units = full_blocks + (1 if remainder > 30 else 0)
                         if units > 0:
                             codes.append(f"96366*{units}")
+
 
 
             # Append codes for this infusion
