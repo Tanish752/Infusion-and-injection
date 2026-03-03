@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime as dt,timedelta
+from datetime import datetime as dt, timedelta
 
 
 def iter_calendar_days(sdt: dt, edt: dt):
@@ -9,6 +9,7 @@ def iter_calendar_days(sdt: dt, edt: dt):
     while d <= end_d:
         yield d
         d = d + timedelta(days=1)
+
 
 def normalize_datetime(date_str: str, time_str: str) -> dt:
     try:
@@ -29,8 +30,10 @@ def normalize_datetime(date_str: str, time_str: str) -> dt:
     date_obj = dt.strptime(date_str, "%Y-%m-%d").date()
     return dt.combine(date_obj, time_obj)
 
+
 def duration(start_dt: dt, end_dt: dt) -> float:
     return (end_dt - start_dt).total_seconds() / 60
+
 
 st.set_page_config(page_title="Infusion Coding Tool", layout="wide")
 st.title("Infusion Coding Tool")
@@ -73,7 +76,7 @@ if process:
         # Sort infusions chronologically by start time to make comparisons reliable
         all_times.sort(key=lambda x: x[2])
 
-        total_durations = {}   # dict[str, float] (not strictly required but kept from your original structure)
+        total_durations = {}   # dict[str, float]
         short_durations = {}   # dict[str, list[float]]
         drug_codes = {}        # dict[str, list[str]]
         skipped_infusions = []
@@ -89,6 +92,11 @@ if process:
         previous_end = None
         previous_start = None
         primary_done = False
+        primary_start = None
+        primary_end = None
+
+        # Track dates that have already received a 96368 (once per date rule)
+        used_96368_dates = set()  # set[date]
 
         # Main coding loop
         for _, drug, start, end, dur in all_times:
@@ -111,11 +119,10 @@ if process:
                         codes.extend(["96366"] * full_blocks)
                         if remainder > 30:
                             codes.append("96366")
-                    
-                    primary_done = True
-                    primary_start = start   # <-- capture the primary window
-                    primary_end = end
 
+                    primary_done = True
+                    primary_start = start   # capture the primary window
+                    primary_end = end
 
                 # --- Case 2: Same drug repeated within 30 minutes ---
                 elif (
@@ -139,8 +146,6 @@ if process:
                         drug_codes.setdefault(drug, []).extend(codes)
                         continue
 
-                                
-                
                 # --- Case 3: Different drug concurrent with PRIMARY — 96368 once per date ---
                 elif (
                     drug != previous_drug
@@ -148,29 +153,27 @@ if process:
                     and primary_end is not None
                     and (start < primary_end and end > primary_start)  # overlaps PRIMARY
                 ):
-                    # Determine how many NEW dates (not yet used for 96368) are covered by this infusion
-                    span_dates = list(iter_calendar_days(start, end))
+                    span_dates = list(iter_calendar_days(start, end))   # list[date]
                     new_dates = [d for d in span_dates if d not in used_96368_dates]
-                
-                    if new_dates:
-                        # Assign 96368 with units equal to the count of NEW dates
-                        units = len(new_dates)
+                    units = len(new_dates)
+
+                    if units > 0:
                         if units == 1:
                             codes.append("96368")
                         else:
                             codes.append(f"96368*{units}")
                         used_96368_dates.update(new_dates)
                     else:
-                        # All dates covered already had a 96368 assigned — treat as sequential instead
+                        # All dates in this span already had a 96368 on that date → treat as sequential
                         codes.append("96367")
                         if dur > 60:
                             remaining = int(dur) - 60
                             full_blocks = remaining // 60
                             remainder = remaining % 60
-                            units = full_blocks + (1 if remainder > 30 else 0)
-                            if units > 0:
-                                codes.append(f"96366*{units}")
-                
+                            extra_units = full_blocks + (1 if remainder > 30 else 0)
+                            if extra_units > 0:
+                                codes.append(f"96366*{extra_units}")
+
                 # --- Case 4: Different drug NOT concurrent with PRIMARY — 96367 ---
                 elif (
                     drug != previous_drug
@@ -186,8 +189,6 @@ if process:
                         units = full_blocks + (1 if remainder > 30 else 0)
                         if units > 0:
                             codes.append(f"96366*{units}")
-
-
 
             # Append codes for this infusion
             drug_codes.setdefault(drug, []).extend(codes)
