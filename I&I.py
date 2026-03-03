@@ -70,6 +70,7 @@ skipped_infusions = []
 
 previous_drug = None
 previous_end = None
+previous_start = None
 primary_done = False
 
 for category, drug, start, end, dur in all_times:
@@ -126,7 +127,8 @@ for category, drug, start, end, dur in all_times:
     # ✅ Append codes instead of overwriting
     drug_codes.setdefault(drug, []).extend(codes)
     previous_drug = drug
-    previous_end = end        
+    previous_end = end
+    previous_start = start
             
     
     for drug, durations in short_durations.items():
