@@ -55,80 +55,80 @@ for i in range(infusion_number):
         except Exception as e:
             st.error(f"Error in infusion {i+1}: {e}")
 
-    if process:
-        total_durations = {}
-        short_durations = {}
-        drug_codes = {}
-    
-        for category, drug, start, end, dur in all_times:
-            if dur < 16:
-                short_durations.setdefault(drug, []).append(dur)
-            else:
-                total_durations[drug] = total_durations.get(drug, 0) + dur
+if process:
+    total_durations = {}
+    short_durations = {}
     drug_codes = {}
-    skipped_infusions = []
-    
-    previous_drug = None
-    previous_end = None
-    primary_done = False
-    
+
     for category, drug, start, end, dur in all_times:
-        codes = []
-    
-        # --- Case 1: First primary infusion ---
-        if not primary_done:
-            if 31 < dur <= 60:
-                codes.append("96365")
-            elif dur > 60:
-                codes.append("96365")
-                remaining = int(dur) - 60
-                full_blocks = remaining // 60
-                remainder = remaining % 60
-                for _ in range(full_blocks):
-                    codes.append("96366")
-                if remainder > 30:
-                    codes.append("96366")
-            primary_done = True
-    
-        # --- Case 2: Same drug repeated within 30 minutes ---
-        elif previous_drug == drug and previous_end and (start - previous_end).total_seconds() / 60 < 30:
-            if (end - previous_end).total_seconds() / 60 > 30 and dur > 30:
-                codes.append("96366")  # continuation if overlap >30 min
-            else:
-                skipped_infusions.append(
-                    f"No code for {drug} since repeated within 30 minutes "
-                    f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
-                )
-                previous_drug = drug
-                previous_end = end
-                continue
-        if "96368" in drug_codes.get(drug, []):
+        if dur < 16:
+            short_durations.setdefault(drug, []).append(dur)
+        else:
+            total_durations[drug] = total_durations.get(drug, 0) + dur
+drug_codes = {}
+skipped_infusions = []
+
+previous_drug = None
+previous_end = None
+primary_done = False
+
+for category, drug, start, end, dur in all_times:
+    codes = []
+
+    # --- Case 1: First primary infusion ---
+    if not primary_done:
+        if 31 < dur <= 60:
+            codes.append("96365")
+        elif dur > 60:
+            codes.append("96365")
+            remaining = int(dur) - 60
+            full_blocks = remaining // 60
+            remainder = remaining % 60
+            for _ in range(full_blocks):
+                codes.append("96366")
+            if remainder > 30:
+                codes.append("96366")
+        primary_done = True
+
+    # --- Case 2: Same drug repeated within 30 minutes ---
+    elif previous_drug == drug and previous_end and (start - previous_end).total_seconds() / 60 < 30:
+        if (start - previous_end).total_seconds() / 60 > 30 and dur > 30:
+            codes.append("96366")  # continuation if overlap >30 min
+        else:
             skipped_infusions.append(
-                f"Warning: Drug already has 96368 code, skipping additional code assignment for this infusion. "
-                f"This is to prevent multiple 96368 codes for the same drug. "
+                f"No code for {drug} since repeated within 30 minutes "
                 f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
             )
-        elif drug != previous_drug and dur in total_durations.get(dur, []):
-            codes.append("96368")  # subsequent drug code if same duration as previous primary
-        # --- Case 3: Subsequent infusions ---
-        else:
-            codes.append("96367")
-            if dur > 60:
-                remaining = int(dur) - 60
-                full_blocks = remaining // 60
-                remainder = remaining % 60
-                units = full_blocks
-                if remainder > 30:
-                    units += 1
-                if units > 0:
-                    codes.append(f"96366*{units}")
-    
-            primary_done = True
-    
-        # ✅ Append codes instead of overwriting
-        drug_codes.setdefault(drug, []).extend(codes)
-        previous_drug = drug
-        previous_end = end        
+            previous_drug = drug
+            previous_end = end
+            continue
+    if "96368" in drug_codes.get(drug, []):
+        skipped_infusions.append(
+            f"Warning: Drug already has 96368 code, skipping additional code assignment for this infusion. "
+            f"This is to prevent multiple 96368 codes for the same drug. "
+            f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
+        )
+    elif drug != previous_drug and dur in total_durations.get(dur, []):
+        codes.append("96368")  # subsequent drug code if same duration as previous primary
+    # --- Case 3: Subsequent infusions ---
+    else:
+        codes.append("96367")
+        if dur > 60:
+            remaining = int(dur) - 60
+            full_blocks = remaining // 60
+            remainder = remaining % 60
+            units = full_blocks
+            if remainder > 30:
+                units += 1
+            if units > 0:
+                codes.append(f"96366*{units}")
+
+        primary_done = True
+
+    # ✅ Append codes instead of overwriting
+    drug_codes.setdefault(drug, []).extend(codes)
+    previous_drug = drug
+    previous_end = end        
             
     
         for drug, durations in short_durations.items():
