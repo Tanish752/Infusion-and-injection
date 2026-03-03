@@ -143,7 +143,10 @@ if process:
 
 
                 # --- Case 4: Subsequent infusions (different logic path) ---
-                elif (previous_drug != drug):
+                elif (
+                    previous_end is not None
+                    and drug != previous_drug
+                    and start > previous_end):
                     codes.append("96367")
                     if dur > 60:
                         remaining = int(dur) - 60
