@@ -101,18 +101,7 @@ for category, drug, start, end, dur in all_times:
                 f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
             )
             continue
-    elif drug != previous_drug and "96368" not in drug_codes.get(drug, []) and start > previous_end:
-        codes.append("96368")  # subsequent drug code if same duration as previous primary
-    elif "96368" in drug_codes.get(drug, []):
-        skipped_infusions.append(
-            f"Warning: Drug already has 96368 code, skipping additional code assignment for this infusion. "
-            f"This is to prevent multiple 96368 codes for the same drug. "
-            f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
-        )
-        
-    
-    # --- Case 3: Subsequent infusions ---
-    else:
+    elif:
         codes.append("96367")
         if dur > 60:
             remaining = int(dur) - 60
@@ -123,6 +112,18 @@ for category, drug, start, end, dur in all_times:
                 units += 1
             if units > 0:
                 codes.append(f"96366*{units}")
+    elif drug != previous_drug and "96368" not in drug_codes.get(drug, []) and start > previous_end:
+        codes.append("96368")  # subsequent drug code if same duration as previous primary
+    else "96368" in drug_codes.get(drug, []):
+        skipped_infusions.append(
+            f"Warning: Drug already has 96368 code, skipping additional code assignment for this infusion. "
+            f"This is to prevent multiple 96368 codes for the same drug. "
+            f"({start.strftime('%Y-%m-%d %H:%M:%S')} → {end.strftime('%Y-%m-%d %H:%M:%S')})"
+        )
+        
+    
+    # --- Case 3: Subsequent infusions ---
+    
 
         primary_done = True
 
