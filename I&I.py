@@ -112,6 +112,9 @@ for category, drug, start, end, dur in all_times:
                 units += 1
             if units > 0:
                 codes.append(f"96366*{units}")
+
+    
+    # --- Case 3: Subsequent infusions ---
     elif drug != previous_drug and "96368" not in drug_codes.get(drug, []) and start > previous_end:
         codes.append("96368")  # subsequent drug code if same duration as previous primary
     else "96368" in drug_codes.get(drug, []):
@@ -122,7 +125,6 @@ for category, drug, start, end, dur in all_times:
         )
         
     
-    # --- Case 3: Subsequent infusions ---
     
 
         primary_done = True
