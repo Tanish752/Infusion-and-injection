@@ -126,27 +126,28 @@ if process:
                         drug_codes.setdefault(drug, []).extend(codes)
                         continue
 
-                # --- Case 3: New drug (one-time 96368 by your rule) ---
-                
+                                
+                # --- Case 3: New drug concurrent with PRIMARY (96368, possibly *days) ---
                 elif (
-                    previous_end is not None
-                    and drug != previous_drug
-                    and start < previous_end                      # overlap => concurrent
-                    and "96368" not in drug_codes.get(drug, [])   # avoid duplicates for this drug
+                    drug != previous_drug
+                    and primary_start is not None
+                    and primary_end is not None
+                    and start < primary_end and end > primary_start  # overlap with PRIMARY window
+                    and "96368" not in drug_codes.get(drug, [])       # avoid duplicate 96368 for this drug
                 ):
                     days = (end.date() - start.date()).days + 1  # inclusive day count
                     if start.date() != end.date():
                         codes.append(f"96368*{days}")
                     else:
                         codes.append("96368")
-
-
-
-                # --- Case 4: Subsequent infusions (different logic path) ---
+                
+                # --- Case 4: New drug SEQUENTIAL to PRIMARY (96367, + extra units if >60) ---
                 elif (
-                    previous_end is not None
-                    and drug != previous_drug
-                    and start > previous_end):
+                    drug != previous_drug
+                    and primary_start is not None
+                    and primary_end is not None
+                    and not (start < primary_end and end > primary_start)  # no overlap with PRIMARY
+                ):
                     codes.append("96367")
                     if dur > 60:
                         remaining = int(dur) - 60
@@ -155,6 +156,7 @@ if process:
                         units = full_blocks + (1 if remainder > 30 else 0)
                         if units > 0:
                             codes.append(f"96366*{units}")
+
 
             # Append codes for this infusion
             drug_codes.setdefault(drug, []).extend(codes)
