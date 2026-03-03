@@ -49,7 +49,7 @@ for i in range(infusion_number):
     if drug and start_time and end_time:
         try:
             start_dt = normalize_datetime(start_date, start_time)
-            end_dt   = normalize_datetime(end_date, end_time)
+            end_dt = normalize_datetime(end_date, end_time)
             dur = duration(start_dt, end_dt)
             if dur < 0:
                 raise ValueError("End time is before start time.")
