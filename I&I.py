@@ -131,16 +131,16 @@ for category, drug, start, end, dur in all_times:
     previous_end = end        
             
     
-        for drug, durations in short_durations.items():
-            for dur in durations:
-                if dur < 16:
-                    drug_codes.setdefault(drug, [])
-                    if "96365" in drug_codes.get(drug, []):
-                        drug_codes[drug].append("96376")
-                    elif primary_done:
-                        drug_codes[drug].append("96375")
-                    else:
-                        drug_codes[drug].append("96374")
+    for drug, durations in short_durations.items():
+        for dur in durations:
+            if dur < 16:
+                drug_codes.setdefault(drug, [])
+                if "96365" in drug_codes.get(drug, []):
+                    drug_codes[drug].append("96376")
+                elif primary_done:
+                    drug_codes[drug].append("96375")
+                else:
+                    drug_codes[drug].append("96374")
 
 st.markdown("## Results")
 st.markdown("### Infusion Summary")
