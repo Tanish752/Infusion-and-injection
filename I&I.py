@@ -116,9 +116,11 @@ if process:
                         full_blocks = remaining // 60
                         remainder = remaining % 60
                         # Add 96366 for each additional hour
-                        codes.extend(["96366"] * full_blocks)
-                        if remainder > 30:
-                            codes.append("96366")
+                        units = full_blocks + (1 if remainder > 30 else 0)
+                        if units > 0:
+                            codes.append(f"96366*{units}")
+
+                    
 
                     primary_done = True
                     primary_start = start   # capture the primary window
