@@ -102,7 +102,11 @@ if process:
                         codes.extend(["96366"] * full_blocks)
                         if remainder > 30:
                             codes.append("96366")
+                    
                     primary_done = True
+                    primary_start = start   # <-- capture the primary window
+                    primary_end = end
+
 
                 # --- Case 2: Same drug repeated within 30 minutes ---
                 elif (
