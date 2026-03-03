@@ -91,7 +91,7 @@ for category, drug, start, end, dur in all_times:
         primary_done = True
 
     # --- Case 2: Same drug repeated within 30 minutes ---
-    elif previous_drug == drug and previous_end in drug[start] or previous_end in drug[stop] and (start - previous_end).total_seconds() / 60 < 30:
+    elif previous_drug == drug and previous_end in drug[start] or previous_end in drug[end] and (start - previous_end).total_seconds() / 60 < 30:
         if (end - previous_end).total_seconds() / 60 > 30 and dur > 30:
             codes.append("96366")  # continuation if overlap >30 min
         else:
