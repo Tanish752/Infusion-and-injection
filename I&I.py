@@ -128,14 +128,14 @@ if process:
 
                 # --- Case 3: New drug (one-time 96368 by your rule) ---
                 while start_date != end_date:
-                    if "96368" not in codes:
-                        if drug != previous_drug and "96368" not in drug_codes.get(drug, []) and previous_start < start < previous_end:
-                            codes.append("96368")
-                        else:
-                            note = " 96368 can be coded once per date"
+                    if drug != previous_drug and "96368" not in drug_codes.get(drug, []):
+                        codes.append("96368")
+                    else:
+                        note = " 96368 can be coded once per date"
 
                 # --- Case 4: Subsequent infusions (different logic path) ---
-                else:
+                elif (
+                    previous_drug != drug:
                     codes.append("96367")
                     if dur > 60:
                         remaining = int(dur) - 60
