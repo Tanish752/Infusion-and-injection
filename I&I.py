@@ -127,7 +127,7 @@ if process:
                         continue
 
                 # --- Case 3: New drug (one-time 96368 by your rule) ---
-                elif drug != previous_drug and "96368" not in drug_codes.get(drug, []) and previous_start < start < previous_stop :
+                elif drug != previous_drug and "96368" not in drug_codes.get(drug, []) and previous_start < start < previous_end :
                     codes.append("96368")
 
                 # --- Case 4: Subsequent infusions (different logic path) ---
