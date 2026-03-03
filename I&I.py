@@ -134,8 +134,7 @@ if process:
                         note = " 96368 can be coded once per date"
 
                 # --- Case 4: Subsequent infusions (different logic path) ---
-                elif (
-                    previous_drug != drug:
+                elif (previous_drug != drug):
                     codes.append("96367")
                     if dur > 60:
                         remaining = int(dur) - 60
