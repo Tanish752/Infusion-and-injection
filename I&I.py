@@ -127,11 +127,20 @@ if process:
                         continue
 
                 # --- Case 3: New drug (one-time 96368 by your rule) ---
-                while start_date != end_date:
-                    if drug != previous_drug and "96368" not in drug_codes.get(drug, []):
-                        codes.append("96368")
+                
+                elif (
+                    previous_end is not None
+                    and drug != previous_drug
+                    and start < previous_end                      # overlap => concurrent
+                    and "96368" not in drug_codes.get(drug, [])   # avoid duplicates for this drug
+                ):
+                    days = (end.date() - start.date()).days + 1  # inclusive day count
+                    if start.date() != end.date():
+                        codes.append(f"96368*{days}")
                     else:
-                        note = " 96368 can be coded once per date"
+                        codes.append("96368")
+
+
 
                 # --- Case 4: Subsequent infusions (different logic path) ---
                 elif (previous_drug != drug):
