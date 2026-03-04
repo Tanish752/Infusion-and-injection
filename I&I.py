@@ -181,7 +181,7 @@ if process:
                     drug != previous_drug
                     and primary_start is not None
                     and primary_end is not None
-                    and not (start < primary_end and end > primary_start)  # no overlap with PRIMARY
+                    #and not (start < primary_end and end > primary_start)  # no overlap with PRIMARY
                 ):
                     codes.append("96367")
                     if dur > 60:
